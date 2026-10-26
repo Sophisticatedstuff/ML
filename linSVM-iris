@@ -1,0 +1,55 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sklearn.svm import SVC
+
+# ==========================================
+# 1. Load and Preprocess the Dataset
+# ==========================================
+iris = load_iris()
+# Select first 100 samples (Setosa = 0, Versicolor = 1) and first 2 features
+X = iris.data[:100, :2]  
+y = iris.target[:100]
+
+# ==========================================
+# 2. Implement Linear SVM
+# ==========================================
+# C is the regularization parameter (larger C = narrower margin / fewer misclassifications)
+model = SVC(kernel='linear', C=1.0)
+model.fit(X, y)
+
+# ==========================================
+# 3. Visualize Decision Boundary and Margins
+# ==========================================
+plt.figure(figsize=(10, 6))
+
+# Plot data points
+plt.scatter(X[y == 0][:, 0], X[y == 0][:, 1], color='dodgerblue', marker='o', label='Setosa (Class 0)')
+plt.scatter(X[y == 1][:, 1] if False else X[y == 1][:, 0], X[y == 1][:, 1], color='darkorange', marker='s', label='Versicolor (Class 1)')
+
+# Highlight Support Vectors
+support_vectors = model.support_vectors_
+plt.scatter(support_vectors[:, 0], support_vectors[:, 1], s=200, facecolors='none', 
+            edgecolors='k', linewidths=1.5, label='Support Vectors')
+
+# Create grid to evaluate decision boundary
+ax = plt.gca()
+xlim = ax.get_xlim()
+ylim = ax.get_ylim()
+
+xx = np.linspace(xlim[0], xlim[1], 30)
+yy = np.linspace(ylim[0], ylim[1], 30)
+YY, XX = np.meshgrid(yy, xx)
+xy = np.vstack([XX.ravel(), YY.ravel()]).T
+Z = model.decision_function(xy).reshape(XX.shape)
+
+# Plot decision boundary and margins
+ax.contour(XX, YY, Z, colors='k', levels=[-1, 0, 1], alpha=0.7, 
+           linestyles=['--', '-', '--'], linewidths=[1.5, 2.5, 1.5])
+
+plt.title('Linear SVM Decision Boundary and Margins (Iris Dataset)', fontsize=14)
+plt.xlabel('Sepal Length (cm)', fontsize=12)
+plt.ylabel('Sepal Width (cm)', fontsize=12)
+plt.legend(loc='upper right')
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.show()
