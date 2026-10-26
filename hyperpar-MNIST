@@ -1,0 +1,73 @@
+import numpy as np
+import pandas as pd
+from sklearn.datasets import fetch_openml
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score
+
+# ==========================================
+# 1. Load and Preprocess the Dataset
+# ==========================================
+print("Loading Fashion MNIST dataset...")
+fashion = fetch_openml('Fashion-MNIST', version=1, parser='auto', as_frame=False)
+X, y = fashion.data, fashion.target.astype(int)
+
+# Normalize pixel values to [0.0, 1.0]
+X = X / 255.0
+
+# Subsample for efficient experimentation (8,000 train / 2,000 test)
+X_train, X_temp, y_train, y_temp = train_test_split(X, y, train_size=8000, random_state=42, stratify=y)
+X_test, _, y_test, _ = train_test_split(X_temp, y_temp, train_size=2000, random_state=42, stratify=y)
+
+print(f"Training Set Shape: {X_train.shape}")
+print(f"Testing Set Shape: {X_test.shape}")
+
+# ==========================================
+# 2. Hyperparameter Grid Experimentation
+# ==========================================
+# Define hyperparameter configurations to test
+configs = [
+    {'learning_rate_init': 0.0001, 'batch_size': 64,  'max_iter': 15, 'desc': 'Low LR / Med Batch'},
+    {'learning_rate_init': 0.001,  'batch_size': 64,  'max_iter': 15, 'desc': 'Optimal LR / Med Batch'},
+    {'learning_rate_init': 0.01,   'batch_size': 64,  'max_iter': 15, 'desc': 'High LR / Med Batch'},
+    {'learning_rate_init': 0.001,  'batch_size': 16,  'max_iter': 15, 'desc': 'Optimal LR / Small Batch'},
+    {'learning_rate_init': 0.001,  'batch_size': 256, 'max_iter': 15, 'desc': 'Optimal LR / Large Batch'},
+    {'learning_rate_init': 0.001,  'batch_size': 64,  'max_iter': 40, 'desc': 'Optimal LR / High Epochs'}
+]
+
+results = []
+
+for idx, config in enumerate(configs):
+    print(f"\nExperiment {idx + 1}: {config['desc']} "
+          f"(LR={config['learning_rate_init']}, Batch={config['batch_size']}, Epochs={config['max_iter']})")
+    
+    mlp = MLPClassifier(
+        hidden_layer_sizes=(128, 64),
+        activation='relu',
+        solver='adam',
+        learning_rate_init=config['learning_rate_init'],
+        batch_size=config['batch_size'],
+        max_iter=config['max_iter'],
+        random_state=42,
+        verbose=False
+    )
+    
+    mlp.fit(X_train, y_train)
+    y_pred = mlp.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    
+    results.append({
+        'Configuration': config['desc'],
+        'Learning Rate': config['learning_rate_init'],
+        'Batch Size': config['batch_size'],
+        'Epochs': config['max_iter'],
+        'Test Accuracy': f"{acc * 100:.2f}%",
+        'Actual Iterations': mlp.n_iter_
+    })
+
+# ==========================================
+# 3. Performance Summary Table
+# ==========================================
+results_df = pd.DataFrame(results)
+print("\n=== Hyperparameter Tuning Performance Summary ===")
+print(results_df.to_string(index=False))
