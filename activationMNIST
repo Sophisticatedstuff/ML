@@ -1,0 +1,77 @@
+import time
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import fetch_openml
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, classification_report
+
+# ==========================================
+# 1. Load and Preprocess the Dataset
+# ==========================================
+print("Loading MNIST dataset...")
+mnist = fetch_openml('mnist_784', version=1, parser='auto', as_frame=False)
+X, y = mnist.data, mnist.target.astype(int)
+
+# Normalize pixel values from [0, 255] to [0.0, 1.0]
+X = X / 255.0
+
+# Subsample data for efficient training and comparison (10,000 train / 2,000 test)
+X_train, X_temp, y_train, y_temp = train_test_split(X, y, train_size=10000, random_state=42, stratify=y)
+X_test, _, y_test, _ = train_test_split(X_temp, y_temp, train_size=2000, random_state=42, stratify=y)
+
+print(f"Training Set Shape: {X_train.shape}")
+print(f"Testing Set Shape: {X_test.shape}")
+
+# ==========================================
+# 2. Implement and Train Models by Activation
+# ==========================================
+activations = {
+    'Sigmoid (Logistic)': 'logistic',
+    'Tanh': 'tanh',
+    'ReLU': 'relu'
+}
+
+results = []
+models = {}
+
+for name, act_func in activations.items():
+    print(f"\nTraining MLP with {name} activation...")
+    
+    # Standard 2-layer hidden architecture: (128, 64)
+    mlp = MLPClassifier(
+        hidden_layer_sizes=(128, 64),
+        activation=act_func,
+        solver='adam',
+        max_iter=50,
+        random_state=42,
+        verbose=False
+    )
+    
+    start_time = time.time()
+    mlp.fit(X_train, y_train)
+    training_time = time.time() - start_time
+    
+    y_pred = mlp.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    
+    models[name] = (mlp, y_pred)
+    results.append({
+        'Activation Function': name,
+        'Test Accuracy': f"{acc * 100:.2f}%",
+        'Training Time (s)': f"{training_time:.2f}s",
+        'Iterations to Converge': mlp.n_iter_
+    })
+
+# ==========================================
+# 3. Model Performance Comparison
+# ==========================================
+results_df = pd.DataFrame(results)
+print("\n=== Activation Function Performance Comparison ===")
+print(results_df.to_string(index=False))
+
+# Detailed report for ReLU
+print("\n--- Detailed Classification Report (ReLU Activation) ---")
+print(classification_report(y_test, models['ReLU'][1]))
